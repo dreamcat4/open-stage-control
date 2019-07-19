@@ -1,7 +1,8 @@
 var Widget = require('../common/widget'),
     doubletab = require('../mixins/double_tap'),
     osc = require('../../osc'),
-    html = require('nanohtml')
+    html = require('nanohtml'),
+    {mapToScale} = require('../utils')
 
 class Push extends Widget {
 
@@ -22,6 +23,7 @@ class Push extends Widget {
                 'Can be an `object` if the type needs to be specified (see preArgs)'
             ]},
             norelease: {type: 'boolean', value: false, help: 'Set to `true` to prevent sending any osc message when releasing the button'},
+            afterTouch: {type: 'string|object', value: '', help: 'Send afterTouch value to this osc address (between 0 and 1)'},
 
         }, ['default'])
 
@@ -35,10 +37,18 @@ class Push extends Widget {
         this.active = 0
         this.lastChanged = 'state'
 
+        this.afterTouch = !!this.getProp('afterTouch')
+        if (this.afterTouch && typeof this.afterTouch == 'object') {
+
+        } else if (this.afterTouch && typeof this.afterTouch == 'string') {
+            this.afterTouchAdd
+        }
+
         if (this.getProp('doubleTap')) {
 
             doubletab(this.widget, ()=>{
                 if (this.active) return
+                if (this.getProp('afterTouch')) this.afterTouchDistance = 0
                 this.setValuePrivate(this.getProp('on'),{send:true,sync:true})
             })
 
@@ -46,6 +56,7 @@ class Push extends Widget {
 
             this.on('draginit',()=>{
                 if (this.active) return
+                if (this.getProp('afterTouch')) this.afterTouchDistance = 0
                 this.setValuePrivate(this.getProp('on'),{send:true,sync:true})
             }, {element: this.widget})
 
@@ -55,6 +66,23 @@ class Push extends Widget {
             if (!this.active) return
             this.setValuePrivate(this.getProp('off'),{send:true,sync:true})
         }, {element: this.widget})
+
+
+        if (this.getProp('afterTouch')) {
+
+            this.afterTouchDistance = 0
+
+            this.on('drag', (e)=>{
+
+                afterTouchDistance += Math.sqrt(Math.pow(e.movementX, 2) + Math.pow(e.movementY, 2))
+                this.sendValue({
+                    address: this.getProp('afterTouch'),
+                    v: mapToScale(afterTouchDistance, [0, 200], [0, 1])
+                })
+
+            }, {element: this.widget})
+
+        }
 
         this.value = this.getProp('off')
 
